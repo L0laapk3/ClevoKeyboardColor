@@ -17,8 +17,12 @@ void setBrightness(byte v) {
     SetDCHU_Data(103, buf.data(), 4);
 }
 
+HWND lastHwnd = NULL;
 
 VOID CALLBACK WinEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
+
+    if (lastHwnd == hwnd || !hwnd)
+        return;
 
     if (dwEvent == EVENT_SYSTEM_FOREGROUND || dwEvent == EVENT_SYSTEM_MINIMIZEEND || dwEvent == EVENT_SYSTEM_MINIMIZESTART) {
 
@@ -98,6 +102,8 @@ VOID CALLBACK WinEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
         gSum = gSum * 255 / max;
         bSum = bSum * 255 / max;
 
+        lastHwnd = hwnd;
+
         std::array<byte, 4> buffer = { gSum, rSum, bSum, 240 };
         SetDCHU_Data(103, buffer.data(), 4);
 
@@ -113,6 +119,10 @@ VOID CALLBACK WinEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, H
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 
+    LPCWSTR mutexName = L"L0laapk3_ClevoKeyboardColor";
+    HANDLE hHandle = CreateMutex(NULL, TRUE, mutexName);
+    if (ERROR_ALREADY_EXISTS == GetLastError())
+        return -1;
 
     auto hdl = LoadLibraryA("InsydeDCHU.dll");
     if (!hdl)
@@ -126,12 +136,13 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     setBrightness(255);
 
     SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, NULL, WinEventProcCallback, 0, 0, WINEVENT_OUTOFCONTEXT);
-    WinEventProcCallback(NULL, EVENT_SYSTEM_FOREGROUND, GetForegroundWindow(), 0, 0, NULL, NULL);
 
+    WinEventProcCallback(NULL, EVENT_SYSTEM_FOREGROUND, GetForegroundWindow(), 0, 0, NULL, NULL);
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
+        WinEventProcCallback(NULL, EVENT_SYSTEM_FOREGROUND, GetForegroundWindow(), 0, 0, NULL, NULL);
     }
 
     FreeLibrary(hdl);
