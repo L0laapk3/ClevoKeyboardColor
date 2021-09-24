@@ -16,6 +16,13 @@ SetDCHU_DataPtr SetDCHU_Data;
 
 struct Color {
     byte r, g, b;
+    static Color mix(Color a, Color b, int i) {
+        return {
+            (byte)((a.r * (256 - i) + b.r * i) / 256),
+            (byte)((a.g * (256 - i) + b.g * i) / 256),
+            (byte)((a.b * (256 - i) + b.b * i) / 256),
+        };
+    }
 };
 
 void setBrightness(byte v) {
@@ -43,9 +50,11 @@ int main() {
     if (!SetDCHU_Data)
         return 2;
 
-    const std::array<Color, 7> colorList{{
+
+    setBrightness(255);
+
+    const std::array<Color, 6> colorList{{
         { 255, 0, 0 },
-        { 255, 127, 0 },
         { 255, 255, 0 },
         { 0, 255, 0 },
         { 0, 255, 255 },
@@ -55,13 +64,10 @@ int main() {
     int colorIndex = 0;
     while (true) {
         setColor(colorList[colorIndex]);
+        int lastIndex = colorIndex;
         colorIndex = (colorIndex + 1) % colorList.size();
-        for (int brightness = 0; brightness < 256; brightness += 8) {
-            setBrightness(brightness);
-            std::this_thread::sleep_for(std::chrono::milliseconds(33));
-        }
-        for (int brightness = 255; brightness >= 0; brightness -= 8) {
-            setBrightness(brightness);
+        for (int fade = 0; fade <= 256; fade += 4) {
+            setColor(Color::mix(colorList[lastIndex], colorList[colorIndex], fade));
             std::this_thread::sleep_for(std::chrono::milliseconds(33));
         }
     }
